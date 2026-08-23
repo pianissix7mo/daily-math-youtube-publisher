@@ -1,0 +1,103 @@
+name: Publish Daily Math Package
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing Release tag containing the master ZIP
+        required: true
+        type: string
+      privacy:
+        description: YouTube privacy
+        required: true
+        default: unlisted
+        type: choice
+        options:
+          - unlisted
+          - private
+          - public
+
+permissions:
+  contents: write
+
+concurrency:
+  group: daily-math-publisher-${{ github.event.release.id || inputs.release_tag }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+
+    steps:
+      - name: Check out publisher
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install ffmpeg and Python dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+
+      - name: Resolve Release and privacy
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "release" ]; then
+            echo "RELEASE_TAG=${{ github.event.release.tag_name }}" >> "$GITHUB_ENV"
+            echo "PRIVACY=unlisted" >> "$GITHUB_ENV"
+          else
+            echo "RELEASE_TAG=${{ inputs.release_tag }}" >> "$GITHUB_ENV"
+            echo "PRIVACY=${{ inputs.privacy }}" >> "$GITHUB_ENV"
+          fi
+
+      - name: Download exactly one master ZIP
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p input state-cache
+          mapfile -t zips < <(
+            gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json assets \
+              --jq '.assets[].name | select(test("\\.[zZ][iI][pP]$"))'
+          )
+          if [ "${#zips[@]}" -ne 1 ]; then
+            echo "Expected exactly one ZIP Release asset, found ${#zips[@]}"
+            printf '%s\n' "${zips[@]:-}"
+            exit 1
+          fi
+          gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
+            --pattern "${zips[0]}" --dir input
+          ZIP_PATH="input/${zips[0]}"
+          test -s "$ZIP_PATH"
+          echo "ZIP_PATH=$ZIP_PATH" >> "$GITHUB_ENV"
+
+          # Resume state is optional. A missing file means this Release has not uploaded anything yet.
+          gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
+            --pattern 'upload-state.json' --dir state-cache || true
+
+      - name: Validate full package and publish sequentially
+        env:
+          GH_TOKEN: ${{ github.token }}
+          YOUTUBE_PUBLISHER_MCP_TOKEN: ${{ secrets.YOUTUBE_PUBLISHER_MCP_TOKEN }}
+          YOUTUBE_PUBLISHER_MCP_URL: https://youtube-cloud-publisher.onrender.com/mcp/
+        run: |
+          python scripts/publish_package.py "$ZIP_PATH" \
+            --privacy "$PRIVACY" \
+            --release-tag "$RELEASE_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --branch main \
+            --release-state state-cache/upload-state.json \
+            --history state/upload-history.json
