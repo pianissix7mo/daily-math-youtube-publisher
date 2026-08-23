@@ -84,15 +84,14 @@ jobs:
           test -s "$ZIP_PATH"
           echo "ZIP_PATH=$ZIP_PATH" >> "$GITHUB_ENV"
 
-          # Resume state is optional. A missing file means this Release has not uploaded anything yet.
           gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
             --pattern 'upload-state.json' --dir state-cache || true
 
       - name: Validate full package and publish sequentially
         env:
           GH_TOKEN: ${{ github.token }}
-          YOUTUBE_PUBLISHER_MCP_TOKEN: ${{ secrets.YOUTUBE_PUBLISHER_MCP_TOKEN }}
-          YOUTUBE_PUBLISHER_MCP_URL: https://youtube-cloud-publisher.onrender.com/mcp/
+          YOUTUBE_MATH_TOKEN_JSON: ${{ secrets.YOUTUBE_MATH_TOKEN_JSON }}
+          EXPECTED_MATH_CHANNEL_ID: ${{ secrets.EXPECTED_MATH_CHANNEL_ID }}
         run: |
           python scripts/publish_package.py "$ZIP_PATH" \
             --privacy "$PRIVACY" \
