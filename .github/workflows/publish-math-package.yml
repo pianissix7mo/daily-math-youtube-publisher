@@ -1,4 +1,4 @@
-name: Publish Daily Math Package
+name: Schedule Daily Math Package
 
 on:
   release:
@@ -6,18 +6,9 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: Existing Release tag containing the master ZIP
+        description: Existing Release tag containing the master ZIP and START_DATE
         required: true
         type: string
-      privacy:
-        description: YouTube privacy
-        required: true
-        default: unlisted
-        type: choice
-        options:
-          - unlisted
-          - private
-          - public
 
 permissions:
   contents: write
@@ -50,25 +41,32 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
 
-      - name: Resolve Release and privacy
+      - name: Resolve Release
         shell: bash
         run: |
           set -euo pipefail
           if [ "${{ github.event_name }}" = "release" ]; then
             echo "RELEASE_TAG=${{ github.event.release.tag_name }}" >> "$GITHUB_ENV"
-            echo "PRIVACY=unlisted" >> "$GITHUB_ENV"
           else
             echo "RELEASE_TAG=${{ inputs.release_tag }}" >> "$GITHUB_ENV"
-            echo "PRIVACY=${{ inputs.privacy }}" >> "$GITHUB_ENV"
           fi
 
-      - name: Download exactly one master ZIP
+      - name: Download exactly one master ZIP and Release schedule
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           mkdir -p input state-cache
+
+          gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
+            --json body --jq '.body // ""' > input/release-body.txt
+          test -s input/release-body.txt || {
+            echo "Release description is empty. Add START_DATE=YYYY-MM-DD"
+            exit 1
+          }
+          echo "RELEASE_BODY_PATH=input/release-body.txt" >> "$GITHUB_ENV"
+
           mapfile -t zips < <(
             gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json assets \
               --jq '.assets[].name | select(test("\\.[zZ][iI][pP]$"))'
@@ -78,6 +76,7 @@ jobs:
             printf '%s\n' "${zips[@]:-}"
             exit 1
           fi
+
           gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
             --pattern "${zips[0]}" --dir input
           ZIP_PATH="input/${zips[0]}"
@@ -87,14 +86,14 @@ jobs:
           gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
             --pattern 'upload-state.json' --dir state-cache || true
 
-      - name: Validate full package and publish sequentially
+      - name: Validate full package and schedule sequentially
         env:
           GH_TOKEN: ${{ github.token }}
           YOUTUBE_MATH_TOKEN_JSON: ${{ secrets.YOUTUBE_MATH_TOKEN_JSON }}
           EXPECTED_MATH_CHANNEL_ID: ${{ secrets.EXPECTED_MATH_CHANNEL_ID }}
         run: |
-          python scripts/run_publisher.py "$ZIP_PATH" \
-            --privacy "$PRIVACY" \
+          python scripts/run_schedule.py "$ZIP_PATH" \
+            --release-body "$RELEASE_BODY_PATH" \
             --release-tag "$RELEASE_TAG" \
             --repo "$GITHUB_REPOSITORY" \
             --branch main \
