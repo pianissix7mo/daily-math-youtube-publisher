@@ -208,6 +208,25 @@
       "url": "https://youtu.be/oPpNJDKYVlU",
       "video_id": "oPpNJDKYVlU",
       "youtube_status": "scheduled"
+    },
+    "680ad75516dbb34d4a4d15cd198686f34bffd8f47765cf9aa0ddbd1fbcfceb2b:172:short": {
+      "channel": "math",
+      "channel_id": "UC1ahmma1TU32tOeUVjVHC7Q",
+      "number": "172",
+      "package_name": "Daily.20Math.20167-191.20-.20AMC.208.20Preparation.20Set.zip",
+      "package_sha256": "680ad75516dbb34d4a4d15cd198686f34bffd8f47765cf9aa0ddbd1fbcfceb2b",
+      "privacy": "private",
+      "publish_at": "2027-01-09T15:00:00Z",
+      "scheduled_local": "2027-01-09T10:00:00-05:00",
+      "thumbnail_error": null,
+      "thumbnail_ok": null,
+      "thumbnail_requested": false,
+      "timezone": "America/Toronto",
+      "title": "Daily Math #172 | Find the Special Array Entry",
+      "type": "short",
+      "url": "https://youtu.be/WdqfMUvrw0k",
+      "video_id": "WdqfMUvrw0k",
+      "youtube_status": "scheduled"
     }
   },
   "version": 1
