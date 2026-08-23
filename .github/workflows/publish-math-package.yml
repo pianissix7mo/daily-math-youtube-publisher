@@ -99,3 +99,17 @@ jobs:
             --branch main \
             --release-state state-cache/upload-state.json \
             --history state/upload-history.json
+
+      - name: Delete successful Release and tag
+        if: ${{ success() }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          echo "All Daily Math videos were scheduled successfully. Cleaning up Release: $RELEASE_TAG"
+          gh release delete "$RELEASE_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --yes \
+            --cleanup-tag
+          echo "Release and tag deleted: $RELEASE_TAG"
