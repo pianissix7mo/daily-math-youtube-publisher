@@ -13,9 +13,24 @@ Publisher-only automation for finished Daily Math video packages.
 7. Schedules each Long+Short pair for the exact same publish time.
 8. Schedules the next Daily Math number one calendar day later.
 9. Sends Long videos with their matching custom thumbnail.
-10. Saves confirmed YouTube IDs and schedule data so a resumed run does not blindly duplicate uploads.
+10. Automatically adds every Long and Short to playlist `PLdWKMS0QH1hc`.
+11. Saves confirmed YouTube IDs, schedule data, and playlist state so a resumed run does not blindly duplicate uploads.
 
 This repository does **not** create, render, edit, add music to, or otherwise modify supplied videos.
+
+## Default playlist
+
+Every scheduled Daily Math Long and Short is automatically added to:
+
+```text
+PLdWKMS0QH1hc
+```
+
+The playlist is fixed in the publisher. It does not need to be included in the Release description or inside the ZIP.
+
+Before inserting, the publisher checks whether the video is already in the playlist. A resumed run therefore does not intentionally add duplicate playlist entries.
+
+If a video upload succeeds but the playlist API step fails, the confirmed video ID is persisted first. A later run retries the playlist step without re-uploading the video.
 
 ## Schedule rule
 
@@ -96,10 +111,11 @@ python -m pip install -r requirements.txt
 python scripts/create_math_token.py path/to/client_secret.json
 ```
 
-The helper requests both scopes required by the safety guard:
+The helper requests:
 
-- `youtube.upload`
-- `youtube.readonly`
+- `https://www.googleapis.com/auth/youtube`
+
+This broader YouTube account scope is required because the publisher both uploads videos and writes to the Daily Math playlist.
 
 It writes `token_math.json` locally and prints the authenticated channel ID.
 
@@ -112,7 +128,7 @@ Configure these two repository Actions secrets:
 - `YOUTUBE_MATH_TOKEN_JSON` — paste the complete contents of `token_math.json`
 - `EXPECTED_MATH_CHANNEL_ID` — paste the exact channel ID printed by the OAuth helper
 
-Before the first `videos.insert`, the workflow calls `channels.list(mine=true)` and refuses to upload unless the authenticated channel exactly matches `EXPECTED_MATH_CHANNEL_ID`.
+Before any upload or playlist sync, the workflow verifies that the token includes playlist-write permission. Before the first `videos.insert`, it also calls `channels.list(mine=true)` and refuses to upload unless the authenticated channel exactly matches `EXPECTED_MATH_CHANNEL_ID`.
 
 ## Metadata contract
 
@@ -143,6 +159,8 @@ The workflow always uploads sequentially:
 
 Upload order and publish time are separate concepts. A Long and Short are uploaded one after the other, but YouTube receives the same `publishAt` value for that pair, so they become public together.
 
+After each successful upload, the publisher checks and then inserts the video into playlist `PLdWKMS0QH1hc` when needed.
+
 ## Duplicate protection
 
 Confirmed uploads are saved in two places:
@@ -154,6 +172,8 @@ The key includes the ZIP SHA-256, Daily Math number, and Long/Short type.
 
 A resumed workflow skips an already-confirmed video only when its stored schedule matches the current Release schedule. If someone changes `START_DATE` after some videos were already uploaded, the workflow stops rather than silently duplicating or rescheduling them.
 
+Older confirmed records without playlist state are treated as playlist-pending. On a resumed run, the publisher checks whether those videos are already in the default playlist and adds only the missing ones.
+
 ## Safety
 
 - no upload starts until full package preflight passes
@@ -164,5 +184,7 @@ A resumed workflow skips an already-confirmed video only when its stored schedul
 - titles/descriptions are never rewritten
 - supplied MP4 files are never re-rendered
 - the OAuth channel ID is verified before uploading
-- a confirmed video ID is treated as success even if a later thumbnail step fails
+- the OAuth token must have playlist-write permission before upload or playlist sync starts
+- every Long and Short is checked against playlist `PLdWKMS0QH1hc`
+- a confirmed video ID is persisted if playlist insertion fails, so retrying does not duplicate the video
 - confirmed uploads and their schedules are persisted before moving to the next item
