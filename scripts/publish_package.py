@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import argparse
 import ast
-import asyncio
 import base64
 import hashlib
 import json
@@ -13,13 +12,16 @@ import zipfile
 from pathlib import Path
 from typing import Any
 
-import httpx
 from bs4 import BeautifulSoup
-from mcp import ClientSession
-from mcp.client.streamable_http import streamable_http_client
+from google.auth.transport.requests import Request
+from google.oauth2.credentials import Credentials
+from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
+from googleapiclient.http import MediaFileUpload
 
-DEFAULT_MCP_URL = "https://youtube-cloud-publisher.onrender.com/mcp/"
-TOKEN_ENV = "YOUTUBE_PUBLISHER_MCP_TOKEN"
+SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
+TOKEN_JSON_ENV = "YOUTUBE_MATH_TOKEN_JSON"
+EXPECTED_CHANNEL_ENV = "EXPECTED_MATH_CHANNEL_ID"
 NUMBER_RE = re.compile(r"\b(\d{3})\b")
 PROBLEM_DIR_RE = re.compile(r"^Daily Math (\d{3})\b", re.I)
 VALID_PRIVACY = {"public", "private", "unlisted"}
@@ -186,7 +188,7 @@ def parse_helper(helper_path: Path) -> dict[tuple[str, str], dict[str, str]]:
     if not raw_items:
         fail(
             "Could not parse metadata from Upload Helper.html. "
-            "Add the recommended <script id=\"upload-data\" type=\"application/json\"> payload."
+            "Add the recommended embedded upload-data JSON payload."
         )
 
     metadata: dict[tuple[str, str], dict[str, str]] = {}
@@ -220,8 +222,7 @@ def validate_package(root: Path) -> list[dict[str, Any]]:
     helper_matches = list(root.rglob("Upload Helper.html"))
     if len(helper_matches) != 1 or helper_matches[0].parent != root:
         fail("ZIP must contain exactly one root-level Upload Helper.html")
-    helper = helper_matches[0]
-    metadata = parse_helper(helper)
+    metadata = parse_helper(helper_matches[0])
 
     thumb_dir = root / "Long Video Thumbnails"
     if not thumb_dir.is_dir():
@@ -282,10 +283,7 @@ def validate_package(root: Path) -> list[dict[str, Any]]:
         thumbnail = matching_thumbs[0]
         used_thumbs.add(thumbnail)
 
-        for kind, path, thumb in (
-            ("long", long_path, thumbnail),
-            ("short", short_path, None),
-        ):
+        for kind, path, thumb in (("long", long_path, thumbnail), ("short", short_path, None)):
             key = (number, kind)
             if key not in metadata:
                 fail(f"Missing Upload Helper metadata for Daily Math {number} {kind}")
@@ -334,9 +332,7 @@ def write_state(path: Path, state: dict[str, Any]) -> None:
 
 
 def gh_release_persist(repo: str, tag: str, state_path: Path) -> None:
-    subprocess.run([
-        "gh", "release", "upload", tag, str(state_path), "--clobber", "--repo", repo
-    ], check=True)
+    subprocess.run(["gh", "release", "upload", tag, str(state_path), "--clobber", "--repo", repo], check=True)
 
 
 def gh_history_persist(repo: str, branch: str, history_path: Path, history: dict[str, Any]) -> None:
@@ -375,80 +371,96 @@ def persist_confirmed_state(repo: str | None, tag: str | None, branch: str,
         print(f"WARNING: {error}", file=sys.stderr)
 
 
-def extract_structured(result: Any) -> dict[str, Any] | None:
-    for name in ("structuredContent", "structured_content"):
-        value = getattr(result, name, None)
-        if isinstance(value, dict):
-            return value
-    for block in getattr(result, "content", []) or []:
-        text = getattr(block, "text", None)
-        if isinstance(text, str):
-            try:
-                value = json.loads(text)
-            except json.JSONDecodeError:
-                continue
-            if isinstance(value, dict):
-                return value
-    return None
+def build_youtube_client():
+    raw = os.getenv(TOKEN_JSON_ENV, "").strip()
+    expected_channel = os.getenv(EXPECTED_CHANNEL_ENV, "").strip()
+    if not raw:
+        fail(f"Required GitHub Actions secret {TOKEN_JSON_ENV} is not configured")
+    if not expected_channel:
+        fail(f"Required GitHub Actions secret {EXPECTED_CHANNEL_ENV} is not configured")
+    try:
+        info = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        fail(f"{TOKEN_JSON_ENV} is not valid authorized-user JSON: {exc}")
+    creds = Credentials.from_authorized_user_info(info, scopes=SCOPES)
+    if creds.expired and creds.refresh_token:
+        creds.refresh(Request())
+    if not creds.valid:
+        fail("Math YouTube OAuth credentials are invalid")
+    youtube = build("youtube", "v3", credentials=creds, cache_discovery=False)
+    response = youtube.channels().list(part="id", mine=True, maxResults=50).execute()
+    channel_ids = sorted({item.get("id") for item in response.get("items", []) if item.get("id")})
+    if len(channel_ids) != 1:
+        fail(f"Math OAuth token must resolve to exactly one channel; got {channel_ids}")
+    if channel_ids[0] != expected_channel:
+        fail(
+            f"Math OAuth channel mismatch: expected {expected_channel}, got {channel_ids[0]}. "
+            "Upload stopped before videos.insert."
+        )
+    return youtube, channel_ids[0]
 
 
-async def create_publish_url(title: str, description: str, privacy: str) -> dict[str, Any]:
-    token = os.getenv(TOKEN_ENV, "").strip()
-    if not token:
-        fail(f"Required secret {TOKEN_ENV} is not configured")
-    mcp_url = os.getenv("YOUTUBE_PUBLISHER_MCP_URL", DEFAULT_MCP_URL).strip() or DEFAULT_MCP_URL
-    timeout = httpx.Timeout(60.0, read=300.0)
-    async with httpx.AsyncClient(
-        headers={"Authorization": f"Bearer {token}"}, follow_redirects=True, timeout=timeout
-    ) as http_client:
-        async with streamable_http_client(
-            mcp_url, http_client=http_client, terminate_on_close=True
-        ) as (read_stream, write_stream, _):
-            async with ClientSession(read_stream, write_stream) as session:
-                await session.initialize()
-                result = await session.call_tool("create_publish_url", arguments={
-                    "title": title,
-                    "description": description,
-                    "privacy": privacy,
-                    "category_id": "27",
-                    "channel": "math",
-                })
-    if getattr(result, "isError", False) or getattr(result, "is_error", False):
-        fail("create_publish_url returned an MCP error")
-    payload = extract_structured(result)
-    if not payload or not payload.get("ok") or not payload.get("upload_url"):
-        fail(f"create_publish_url failed: {payload}")
-    if payload.get("channel") != "math":
-        fail(f"Publisher channel mismatch before upload: {payload.get('channel')!r}")
-    return payload
+def http_error_detail(exc: HttpError) -> str:
+    if isinstance(exc.content, bytes):
+        return exc.content.decode("utf-8", errors="replace")
+    return str(exc.content)
 
 
-async def upload_item(item: dict[str, Any], privacy: str) -> dict[str, Any]:
-    signed = await create_publish_url(item["title"], item["description"], privacy)
-    video = Path(item["path"])
-    thumbnail = Path(item["thumbnail"]) if item.get("thumbnail") else None
-    timeout = httpx.Timeout(60.0, read=1800.0)
-    async with httpx.AsyncClient(follow_redirects=True, timeout=timeout) as client:
-        with video.open("rb") as video_fh:
-            files: dict[str, Any] = {"file": (video.name, video_fh, "video/mp4")}
-            if thumbnail is None:
-                response = await client.post(signed["upload_url"], files=files)
-            else:
-                mime = "image/png" if thumbnail.suffix.lower() == ".png" else "image/jpeg"
-                with thumbnail.open("rb") as thumb_fh:
-                    files["thumbnail"] = (thumbnail.name, thumb_fh, mime)
-                    response = await client.post(signed["upload_url"], files=files)
-    if response.status_code < 200 or response.status_code >= 300:
-        fail(f"YouTube upload failed with HTTP {response.status_code}: {response.text[:1000]}")
-    payload = response.json()
-    if not payload.get("ok") or not payload.get("video_id"):
-        fail(f"Upload response did not confirm video_id: {payload}")
-    if payload.get("channel") != "math":
-        fail(f"Upload completed on unexpected channel route: {payload.get('channel')!r}")
-    return payload
+def upload_item(youtube, channel_id: str, item: dict[str, Any], privacy: str) -> dict[str, Any]:
+    body = {
+        "snippet": {
+            "title": item["title"],
+            "description": item["description"],
+            "categoryId": "27",
+        },
+        "status": {
+            "privacyStatus": privacy,
+            "selfDeclaredMadeForKids": False,
+        },
+    }
+    request = youtube.videos().insert(
+        part="snippet,status",
+        body=body,
+        media_body=MediaFileUpload(item["path"], mimetype="video/mp4", chunksize=8 * 1024 * 1024, resumable=True),
+        notifySubscribers=False,
+    )
+    response = None
+    while response is None:
+        status, response = request.next_chunk()
+        if status is not None:
+            print(f"Upload progress {item['number']} {item['type']}: {int(status.progress() * 100)}%")
+    video_id = response.get("id")
+    if not video_id:
+        fail(f"YouTube did not return a video_id for {item['number']} {item['type']}")
+
+    thumbnail_requested = bool(item.get("thumbnail"))
+    thumbnail_ok = None
+    thumbnail_error = None
+    if thumbnail_requested:
+        try:
+            youtube.thumbnails().set(
+                videoId=video_id,
+                media_body=MediaFileUpload(item["thumbnail"], resumable=False),
+            ).execute()
+            thumbnail_ok = True
+        except HttpError as exc:
+            thumbnail_ok = False
+            thumbnail_error = http_error_detail(exc)
+
+    return {
+        "ok": True,
+        "video_id": video_id,
+        "url": f"https://youtu.be/{video_id}",
+        "privacy": privacy,
+        "channel": "math",
+        "channel_id": channel_id,
+        "thumbnail_requested": thumbnail_requested,
+        "thumbnail_ok": thumbnail_ok,
+        "thumbnail_error": thumbnail_error,
+    }
 
 
-async def async_main(args: argparse.Namespace) -> int:
+def run_main(args: argparse.Namespace) -> int:
     zip_path = Path(args.zip).resolve()
     if not zip_path.is_file() or zip_path.suffix.lower() != ".zip":
         fail(f"ZIP not found: {zip_path}")
@@ -476,15 +488,32 @@ async def async_main(args: argparse.Namespace) -> int:
     release_state["package_name"] = zip_path.name
     release_state["package_sha256"] = package_sha
 
+    pending = []
     for item in manifest:
         key = f"{package_sha}:{item['number']}:{item['type']}"
         existing = release_state["items"].get(key) or history["items"].get(key)
         if existing and existing.get("video_id"):
             print(f"SKIP {item['number']} {item['type'].upper()}: already uploaded as {existing['video_id']}")
+        else:
+            pending.append(item)
+
+    if pending:
+        youtube, channel_id = build_youtube_client()
+    else:
+        youtube, channel_id = None, None
+
+    for item in manifest:
+        key = f"{package_sha}:{item['number']}:{item['type']}"
+        existing = release_state["items"].get(key) or history["items"].get(key)
+        if existing and existing.get("video_id"):
             continue
 
         print(f"UPLOAD {item['number']} {item['type'].upper()}: {item['title']}")
-        payload = await upload_item(item, args.privacy)
+        try:
+            payload = upload_item(youtube, channel_id, item, args.privacy)
+        except HttpError as exc:
+            fail(f"YouTube API upload failed: {http_error_detail(exc)}")
+
         record = {
             "package_name": zip_path.name,
             "package_sha256": package_sha,
@@ -494,7 +523,7 @@ async def async_main(args: argparse.Namespace) -> int:
             "video_id": payload.get("video_id"),
             "url": payload.get("url"),
             "privacy": payload.get("privacy", args.privacy),
-            "channel": payload.get("channel"),
+            "channel": "math",
             "channel_id": payload.get("channel_id"),
             "thumbnail_requested": payload.get("thumbnail_requested"),
             "thumbnail_ok": payload.get("thumbnail_ok"),
@@ -532,7 +561,7 @@ def main() -> None:
     parser.add_argument("--workdir", default=".work/package")
     args = parser.parse_args()
     try:
-        raise SystemExit(asyncio.run(async_main(args)))
+        raise SystemExit(run_main(args))
     except Exception as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         raise SystemExit(1)
