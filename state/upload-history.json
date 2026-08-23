@@ -1101,6 +1101,25 @@
       "url": "https://youtu.be/1J5vfk5LhYQ",
       "video_id": "1J5vfk5LhYQ",
       "youtube_status": "scheduled"
+    },
+    "b6ac3d0b898c6d4aeff3a39a001b70d8eb313bc178e8c2470f386caa8b19219a:196:long": {
+      "channel": "math",
+      "channel_id": "UC1ahmma1TU32tOeUVjVHC7Q",
+      "number": "196",
+      "package_name": "Daily.20Math.20192-216.20-.20AMC.208.20Preparation.20Set.zip",
+      "package_sha256": "b6ac3d0b898c6d4aeff3a39a001b70d8eb313bc178e8c2470f386caa8b19219a",
+      "privacy": "private",
+      "publish_at": "2027-02-02T15:00:00Z",
+      "scheduled_local": "2027-02-02T10:00:00-05:00",
+      "thumbnail_error": null,
+      "thumbnail_ok": true,
+      "thumbnail_requested": true,
+      "timezone": "America/Toronto",
+      "title": "Daily Math #196 | Rectangle With a Circular Hole | Geometry Area | Difficulty 3/10",
+      "type": "long",
+      "url": "https://youtu.be/tqr8flVdlFM",
+      "video_id": "tqr8flVdlFM",
+      "youtube_status": "scheduled"
     }
   },
   "version": 1
