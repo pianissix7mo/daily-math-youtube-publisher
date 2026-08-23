@@ -816,6 +816,25 @@
       "url": "https://youtu.be/Nki2E9Qo_GQ",
       "video_id": "Nki2E9Qo_GQ",
       "youtube_status": "scheduled"
+    },
+    "680ad75516dbb34d4a4d15cd198686f34bffd8f47765cf9aa0ddbd1fbcfceb2b:188:short": {
+      "channel": "math",
+      "channel_id": "UC1ahmma1TU32tOeUVjVHC7Q",
+      "number": "188",
+      "package_name": "Daily.20Math.20167-191.20-.20AMC.208.20Preparation.20Set.zip",
+      "package_sha256": "680ad75516dbb34d4a4d15cd198686f34bffd8f47765cf9aa0ddbd1fbcfceb2b",
+      "privacy": "private",
+      "publish_at": "2027-01-25T15:00:00Z",
+      "scheduled_local": "2027-01-25T10:00:00-05:00",
+      "thumbnail_error": null,
+      "thumbnail_ok": null,
+      "thumbnail_requested": false,
+      "timezone": "America/Toronto",
+      "title": "Daily Math #188 | Is the Product Even",
+      "type": "short",
+      "url": "https://youtu.be/KD5aKjSGYCQ",
+      "video_id": "KD5aKjSGYCQ",
+      "youtube_status": "scheduled"
     }
   },
   "version": 1
