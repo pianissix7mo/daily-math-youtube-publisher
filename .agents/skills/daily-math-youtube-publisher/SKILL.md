@@ -51,9 +51,9 @@ Long videos receive the matching custom thumbnail.
 
 Shorts do not receive the Long thumbnail.
 
-The workflow uses only `channel=math`.
+The workflow uses only the isolated Math YouTube OAuth credentials stored in `YOUTUBE_MATH_TOKEN_JSON` and verifies them against `EXPECTED_MATH_CHANNEL_ID` before any upload.
 
-Never substitute `finance` or `cooking`.
+Never use Finance or Cooking channel credentials for this workflow.
 
 ## Duplicate safety
 
@@ -76,4 +76,4 @@ After publishing, report concisely:
 - privacy
 - any skipped duplicates or failures
 
-Never print OAuth tokens, bearer tokens, signed upload URLs, API keys, or secret values.
+Never print OAuth tokens, refresh tokens, client secrets, API keys, or other secret values.
