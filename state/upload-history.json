@@ -569,6 +569,25 @@
       "url": "https://youtu.be/KJNgEFddzoM",
       "video_id": "KJNgEFddzoM",
       "youtube_status": "scheduled"
+    },
+    "680ad75516dbb34d4a4d15cd198686f34bffd8f47765cf9aa0ddbd1fbcfceb2b:182:long": {
+      "channel": "math",
+      "channel_id": "UC1ahmma1TU32tOeUVjVHC7Q",
+      "number": "182",
+      "package_name": "Daily.20Math.20167-191.20-.20AMC.208.20Preparation.20Set.zip",
+      "package_sha256": "680ad75516dbb34d4a4d15cd198686f34bffd8f47765cf9aa0ddbd1fbcfceb2b",
+      "privacy": "private",
+      "publish_at": "2027-01-19T15:00:00Z",
+      "scheduled_local": "2027-01-19T10:00:00-05:00",
+      "thumbnail_error": null,
+      "thumbnail_ok": true,
+      "thumbnail_requested": true,
+      "timezone": "America/Toronto",
+      "title": "Daily Math #182 | Which Letter Ends Up on Top | Spatial Reasoning | Difficulty 7/10",
+      "type": "long",
+      "url": "https://youtu.be/fWv0xjfjV4w",
+      "video_id": "fWv0xjfjV4w",
+      "youtube_status": "scheduled"
     }
   },
   "version": 1
