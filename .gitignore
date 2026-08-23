@@ -1,0 +1,9 @@
+token_math.json
+client_secret*.json
+.work/
+input/
+state-cache/
+__pycache__/
+*.pyc
+*.zip
+*.mp4
