@@ -93,7 +93,7 @@ jobs:
           YOUTUBE_MATH_TOKEN_JSON: ${{ secrets.YOUTUBE_MATH_TOKEN_JSON }}
           EXPECTED_MATH_CHANNEL_ID: ${{ secrets.EXPECTED_MATH_CHANNEL_ID }}
         run: |
-          python scripts/publish_package.py "$ZIP_PATH" \
+          python scripts/run_publisher.py "$ZIP_PATH" \
             --privacy "$PRIVACY" \
             --release-tag "$RELEASE_TAG" \
             --repo "$GITHUB_REPOSITORY" \
