@@ -5,10 +5,13 @@ from pathlib import Path
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 
+# Full YouTube account scope is required because the publisher uploads videos and
+# automatically adds every Long and Short to the Daily Math playlist.
 SCOPES = [
-    "https://www.googleapis.com/auth/youtube.upload",
-    "https://www.googleapis.com/auth/youtube.readonly",
+    "https://www.googleapis.com/auth/youtube",
 ]
+
+DEFAULT_PLAYLIST_ID = "PLdWKMS0QH1hc"
 
 
 def main() -> None:
@@ -40,6 +43,7 @@ def main() -> None:
     output.write_text(creds.to_json(), encoding="utf-8")
 
     print(f"Authenticated channel: {title} ({channel_id})")
+    print(f"Default playlist: {DEFAULT_PLAYLIST_ID}")
     print(f"Saved authorized-user JSON: {output}")
     print()
     print("GitHub Actions secrets to configure:")
