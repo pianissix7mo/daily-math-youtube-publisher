@@ -2,8 +2,7 @@
 import schedule_package
 
 schedule_package.base.SCOPES = [
-    "https://www.googleapis.com/auth/youtube.upload",
-    "https://www.googleapis.com/auth/youtube.readonly",
+    "https://www.googleapis.com/auth/youtube",
 ]
 
 if __name__ == "__main__":
