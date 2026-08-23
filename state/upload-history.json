@@ -1367,6 +1367,25 @@
       "url": "https://youtu.be/Q-SZyJDOqhU",
       "video_id": "Q-SZyJDOqhU",
       "youtube_status": "scheduled"
+    },
+    "b6ac3d0b898c6d4aeff3a39a001b70d8eb313bc178e8c2470f386caa8b19219a:203:long": {
+      "channel": "math",
+      "channel_id": "UC1ahmma1TU32tOeUVjVHC7Q",
+      "number": "203",
+      "package_name": "Daily.20Math.20192-216.20-.20AMC.208.20Preparation.20Set.zip",
+      "package_sha256": "b6ac3d0b898c6d4aeff3a39a001b70d8eb313bc178e8c2470f386caa8b19219a",
+      "privacy": "private",
+      "publish_at": "2027-02-09T15:00:00Z",
+      "scheduled_local": "2027-02-09T10:00:00-05:00",
+      "thumbnail_error": null,
+      "thumbnail_ok": true,
+      "thumbnail_requested": true,
+      "timezone": "America/Toronto",
+      "title": "Daily Math #203 | Equal Tire Usage on a Seven-Tire Van | Rates and Equal Sharing | Difficulty 3/10",
+      "type": "long",
+      "url": "https://youtu.be/Purd9prL54M",
+      "video_id": "Purd9prL54M",
+      "youtube_status": "scheduled"
     }
   },
   "version": 1
