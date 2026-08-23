@@ -1766,6 +1766,25 @@
       "url": "https://youtu.be/njuq0uzvQ24",
       "video_id": "njuq0uzvQ24",
       "youtube_status": "scheduled"
+    },
+    "b6ac3d0b898c6d4aeff3a39a001b70d8eb313bc178e8c2470f386caa8b19219a:213:short": {
+      "channel": "math",
+      "channel_id": "UC1ahmma1TU32tOeUVjVHC7Q",
+      "number": "213",
+      "package_name": "Daily.20Math.20192-216.20-.20AMC.208.20Preparation.20Set.zip",
+      "package_sha256": "b6ac3d0b898c6d4aeff3a39a001b70d8eb313bc178e8c2470f386caa8b19219a",
+      "privacy": "private",
+      "publish_at": "2027-02-19T15:00:00Z",
+      "scheduled_local": "2027-02-19T10:00:00-05:00",
+      "thumbnail_error": null,
+      "thumbnail_ok": null,
+      "thumbnail_requested": false,
+      "timezone": "America/Toronto",
+      "title": "Daily Math #213 | Possible New Tile Perimeter — You Have 10 Seconds",
+      "type": "short",
+      "url": "https://youtu.be/5wNX1z8KsuU",
+      "video_id": "5wNX1z8KsuU",
+      "youtube_status": "scheduled"
     }
   },
   "version": 1
