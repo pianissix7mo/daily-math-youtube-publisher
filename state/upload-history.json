@@ -1082,6 +1082,25 @@
       "url": "https://youtu.be/VxZt2VUJN8M",
       "video_id": "VxZt2VUJN8M",
       "youtube_status": "scheduled"
+    },
+    "b6ac3d0b898c6d4aeff3a39a001b70d8eb313bc178e8c2470f386caa8b19219a:195:short": {
+      "channel": "math",
+      "channel_id": "UC1ahmma1TU32tOeUVjVHC7Q",
+      "number": "195",
+      "package_name": "Daily.20Math.20192-216.20-.20AMC.208.20Preparation.20Set.zip",
+      "package_sha256": "b6ac3d0b898c6d4aeff3a39a001b70d8eb313bc178e8c2470f386caa8b19219a",
+      "privacy": "private",
+      "publish_at": "2027-02-01T15:00:00Z",
+      "scheduled_local": "2027-02-01T10:00:00-05:00",
+      "thumbnail_error": null,
+      "thumbnail_ok": null,
+      "thumbnail_requested": false,
+      "timezone": "America/Toronto",
+      "title": "Daily Math #195 | What Percent Are White — You Have 10 Seconds",
+      "type": "short",
+      "url": "https://youtu.be/1J5vfk5LhYQ",
+      "video_id": "1J5vfk5LhYQ",
+      "youtube_status": "scheduled"
     }
   },
   "version": 1
