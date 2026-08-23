@@ -1234,6 +1234,25 @@
       "url": "https://youtu.be/auqjFraxzas",
       "video_id": "auqjFraxzas",
       "youtube_status": "scheduled"
+    },
+    "b6ac3d0b898c6d4aeff3a39a001b70d8eb313bc178e8c2470f386caa8b19219a:199:short": {
+      "channel": "math",
+      "channel_id": "UC1ahmma1TU32tOeUVjVHC7Q",
+      "number": "199",
+      "package_name": "Daily.20Math.20192-216.20-.20AMC.208.20Preparation.20Set.zip",
+      "package_sha256": "b6ac3d0b898c6d4aeff3a39a001b70d8eb313bc178e8c2470f386caa8b19219a",
+      "privacy": "private",
+      "publish_at": "2027-02-05T15:00:00Z",
+      "scheduled_local": "2027-02-05T10:00:00-05:00",
+      "thumbnail_error": null,
+      "thumbnail_ok": null,
+      "thumbnail_requested": false,
+      "timezone": "America/Toronto",
+      "title": "Daily Math #199 | Recover the Cost and Earn 60 Dollars — You Have 10 Seconds",
+      "type": "short",
+      "url": "https://youtu.be/q0zq8ZQN1rw",
+      "video_id": "q0zq8ZQN1rw",
+      "youtube_status": "scheduled"
     }
   },
   "version": 1
