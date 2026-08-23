@@ -987,6 +987,25 @@
       "url": "https://youtu.be/TP1DPvA76C0",
       "video_id": "TP1DPvA76C0",
       "youtube_status": "scheduled"
+    },
+    "b6ac3d0b898c6d4aeff3a39a001b70d8eb313bc178e8c2470f386caa8b19219a:193:long": {
+      "channel": "math",
+      "channel_id": "UC1ahmma1TU32tOeUVjVHC7Q",
+      "number": "193",
+      "package_name": "Daily.20Math.20192-216.20-.20AMC.208.20Preparation.20Set.zip",
+      "package_sha256": "b6ac3d0b898c6d4aeff3a39a001b70d8eb313bc178e8c2470f386caa8b19219a",
+      "privacy": "private",
+      "publish_at": "2027-01-30T15:00:00Z",
+      "scheduled_local": "2027-01-30T10:00:00-05:00",
+      "thumbnail_error": null,
+      "thumbnail_ok": true,
+      "thumbnail_requested": true,
+      "timezone": "America/Toronto",
+      "title": "Daily Math #193 | Which Fraction Is Different | Fractions | Difficulty 2/10",
+      "type": "long",
+      "url": "https://youtu.be/Sh34C48GiDc",
+      "video_id": "Sh34C48GiDc",
+      "youtube_status": "scheduled"
     }
   },
   "version": 1
