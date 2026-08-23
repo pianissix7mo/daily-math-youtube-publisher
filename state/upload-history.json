@@ -1861,6 +1861,25 @@
       "url": "https://youtu.be/QvIFG88L2Ic",
       "video_id": "QvIFG88L2Ic",
       "youtube_status": "scheduled"
+    },
+    "b6ac3d0b898c6d4aeff3a39a001b70d8eb313bc178e8c2470f386caa8b19219a:216:long": {
+      "channel": "math",
+      "channel_id": "UC1ahmma1TU32tOeUVjVHC7Q",
+      "number": "216",
+      "package_name": "Daily.20Math.20192-216.20-.20AMC.208.20Preparation.20Set.zip",
+      "package_sha256": "b6ac3d0b898c6d4aeff3a39a001b70d8eb313bc178e8c2470f386caa8b19219a",
+      "privacy": "private",
+      "publish_at": "2027-02-22T15:00:00Z",
+      "scheduled_local": "2027-02-22T10:00:00-05:00",
+      "thumbnail_error": null,
+      "thumbnail_ok": true,
+      "thumbnail_requested": true,
+      "timezone": "America/Toronto",
+      "title": "Daily Math #216 | Successive Pouring Pattern | Fractions and Patterns | Difficulty 4/10",
+      "type": "long",
+      "url": "https://youtu.be/Fs_i7iNC_oY",
+      "video_id": "Fs_i7iNC_oY",
+      "youtube_status": "scheduled"
     }
   },
   "version": 1
