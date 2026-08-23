@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import json
+import os
 import re
 import shutil
 import sys
@@ -16,6 +17,15 @@ import publish_package as base
 SCHEDULE_TIMEZONE = "America/Toronto"
 PAIR_PUBLISH_TIME = time(10, 0)
 START_DATE_RE = re.compile(r"(?im)^\s*START_DATE\s*=\s*(\d{4}-\d{2}-\d{2})\s*$")
+YOUTUBE_ACCOUNT_SCOPE = "https://www.googleapis.com/auth/youtube"
+YOUTUBE_FORCE_SSL_SCOPE = "https://www.googleapis.com/auth/youtube.force-ssl"
+YOUTUBE_PARTNER_SCOPE = "https://www.googleapis.com/auth/youtubepartner"
+DEFAULT_PLAYLIST_ID = "PLdWKMS0QH1hc"
+
+# The scheduled publisher now needs playlist write access in addition to video upload access.
+# A single full YouTube account scope covers videos.insert, channels.list, thumbnails.set,
+# playlistItems.list, and playlistItems.insert.
+base.SCOPES = [YOUTUBE_ACCOUNT_SCOPE]
 
 
 def fail(message: str) -> None:
@@ -135,6 +145,76 @@ def upload_scheduled_item(youtube, channel_id: str, item: dict) -> dict:
     }
 
 
+def require_playlist_oauth_scope() -> None:
+    raw = os.getenv(base.TOKEN_JSON_ENV, "").strip()
+    if not raw:
+        fail(f"Required GitHub Actions secret {base.TOKEN_JSON_ENV} is not configured")
+    try:
+        info = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        fail(f"{base.TOKEN_JSON_ENV} is not valid authorized-user JSON: {exc}")
+
+    scopes = info.get("scopes") or []
+    if isinstance(scopes, str):
+        scopes = scopes.split()
+    granted = set(scopes)
+    playlist_write_scopes = {
+        YOUTUBE_ACCOUNT_SCOPE,
+        YOUTUBE_FORCE_SSL_SCOPE,
+        YOUTUBE_PARTNER_SCOPE,
+    }
+    if not granted.intersection(playlist_write_scopes):
+        fail(
+            "Math YouTube OAuth token does not have playlist write permission. "
+            "Run scripts/create_math_token.py again and replace the YOUTUBE_MATH_TOKEN_JSON "
+            f"GitHub Actions secret before uploading. Required playlist: {DEFAULT_PLAYLIST_ID}."
+        )
+
+
+def ensure_video_in_playlist(youtube, video_id: str) -> dict:
+    existing = youtube.playlistItems().list(
+        part="id",
+        playlistId=DEFAULT_PLAYLIST_ID,
+        videoId=video_id,
+        maxResults=50,
+    ).execute()
+    items = existing.get("items", [])
+    if items:
+        return {
+            "playlist_id": DEFAULT_PLAYLIST_ID,
+            "playlist_ok": True,
+            "playlist_item_id": items[0].get("id"),
+            "playlist_action": "already-present",
+            "playlist_error": None,
+        }
+
+    response = youtube.playlistItems().insert(
+        part="snippet",
+        body={
+            "snippet": {
+                "playlistId": DEFAULT_PLAYLIST_ID,
+                "resourceId": {
+                    "kind": "youtube#video",
+                    "videoId": video_id,
+                },
+            }
+        },
+    ).execute()
+    return {
+        "playlist_id": DEFAULT_PLAYLIST_ID,
+        "playlist_ok": True,
+        "playlist_item_id": response.get("id"),
+        "playlist_action": "inserted",
+        "playlist_error": None,
+    }
+
+
+def playlist_needs_sync(record: dict | None) -> bool:
+    if not record or not record.get("video_id"):
+        return False
+    return record.get("playlist_id") != DEFAULT_PLAYLIST_ID or record.get("playlist_ok") is not True
+
+
 def existing_record_for(key: str, release_state: dict, history: dict) -> dict | None:
     return release_state["items"].get(key) or history["items"].get(key)
 
@@ -146,6 +226,79 @@ def check_existing_schedule(item: dict, existing: dict) -> None:
             f"Daily Math {item['number']} {item['type']} is already uploaded as "
             f"{existing.get('video_id')} with publishAt={old_publish_at}, but this Release "
             f"now requests publishAt={item['publish_at']}. Refusing to duplicate or silently reschedule."
+        )
+
+
+def persist_record(
+    key: str,
+    record: dict,
+    args: argparse.Namespace,
+    release_state_path: Path,
+    release_state: dict,
+    history_path: Path,
+    history: dict,
+) -> None:
+    release_state["items"][key] = record
+    history["items"][key] = record
+    base.persist_confirmed_state(
+        args.repo,
+        args.release_tag,
+        args.branch,
+        release_state_path,
+        release_state,
+        history_path,
+        history,
+    )
+
+
+def sync_playlist_or_fail(
+    youtube,
+    key: str,
+    record: dict,
+    args: argparse.Namespace,
+    release_state_path: Path,
+    release_state: dict,
+    history_path: Path,
+    history: dict,
+) -> dict:
+    try:
+        playlist_payload = ensure_video_in_playlist(youtube, record["video_id"])
+        record.update(playlist_payload)
+        persist_record(
+            key,
+            record,
+            args,
+            release_state_path,
+            release_state,
+            history_path,
+            history,
+        )
+        print(
+            f"PLAYLIST CONFIRMED {record['number']} {record['type'].upper()}: "
+            f"{DEFAULT_PLAYLIST_ID} ({record.get('playlist_action')})"
+        )
+        return record
+    except Exception as exc:
+        error_detail = base.http_error_detail(exc) if isinstance(exc, HttpError) else repr(exc)
+        record.update({
+            "playlist_id": DEFAULT_PLAYLIST_ID,
+            "playlist_ok": False,
+            "playlist_item_id": None,
+            "playlist_action": "failed",
+            "playlist_error": error_detail,
+        })
+        persist_record(
+            key,
+            record,
+            args,
+            release_state_path,
+            release_state,
+            history_path,
+            history,
+        )
+        fail(
+            f"Video {record['video_id']} is safely recorded, but adding it to playlist "
+            f"{DEFAULT_PLAYLIST_ID} failed: {record['playlist_error']}"
         )
 
 
@@ -169,6 +322,7 @@ def run_main(args: argparse.Namespace) -> int:
     print(f"SHA-256: {package_sha}")
     print(f"START_DATE: {start_date.isoformat()}")
     print(f"PAIR TIME: {PAIR_PUBLISH_TIME.strftime('%H:%M')} {SCHEDULE_TIMEZONE}")
+    print(f"PLAYLIST: {DEFAULT_PLAYLIST_ID}")
 
     manifest = base.validate_package(root)
     manifest = add_schedule(manifest, start_date)
@@ -183,8 +337,9 @@ def run_main(args: argparse.Namespace) -> int:
     release_state["start_date"] = start_date.isoformat()
     release_state["timezone"] = SCHEDULE_TIMEZONE
     release_state["pair_publish_time"] = PAIR_PUBLISH_TIME.strftime("%H:%M")
+    release_state["playlist_id"] = DEFAULT_PLAYLIST_ID
 
-    pending: list[dict] = []
+    needs_youtube = False
     for item in manifest:
         key = f"{package_sha}:{item['number']}:{item['type']}"
         existing = existing_record_for(key, release_state, history)
@@ -194,10 +349,17 @@ def run_main(args: argparse.Namespace) -> int:
                 f"SKIP {item['number']} {item['type'].upper()}: already uploaded as "
                 f"{existing['video_id']} for {existing.get('scheduled_local') or existing.get('publish_at')}"
             )
+            if playlist_needs_sync(existing):
+                print(
+                    f"PLAYLIST PENDING {item['number']} {item['type'].upper()}: "
+                    f"{DEFAULT_PLAYLIST_ID}"
+                )
+                needs_youtube = True
         else:
-            pending.append(item)
+            needs_youtube = True
 
-    if pending:
+    if needs_youtube:
+        require_playlist_oauth_scope()
         youtube, channel_id = base.build_youtube_client()
     else:
         youtube, channel_id = None, None
@@ -206,6 +368,18 @@ def run_main(args: argparse.Namespace) -> int:
         key = f"{package_sha}:{item['number']}:{item['type']}"
         existing = existing_record_for(key, release_state, history)
         if existing and existing.get("video_id"):
+            if playlist_needs_sync(existing):
+                record = dict(existing)
+                sync_playlist_or_fail(
+                    youtube,
+                    key,
+                    record,
+                    args,
+                    release_state_path,
+                    release_state,
+                    history_path,
+                    history,
+                )
             continue
 
         print(
@@ -235,13 +409,21 @@ def run_main(args: argparse.Namespace) -> int:
             "thumbnail_requested": payload.get("thumbnail_requested"),
             "thumbnail_ok": payload.get("thumbnail_ok"),
             "thumbnail_error": payload.get("thumbnail_error"),
+            "playlist_id": DEFAULT_PLAYLIST_ID,
+            "playlist_ok": None,
+            "playlist_item_id": None,
+            "playlist_action": "pending",
+            "playlist_error": None,
         }
-        release_state["items"][key] = record
-        history["items"][key] = record
-        base.persist_confirmed_state(
-            args.repo,
-            args.release_tag,
-            args.branch,
+
+        # Add the video to the playlist before moving to the next upload. If the playlist
+        # API fails, sync_playlist_or_fail persists the confirmed video ID first, so a
+        # resumed run will retry only the playlist step and will not duplicate the video.
+        sync_playlist_or_fail(
+            youtube,
+            key,
+            record,
+            args,
             release_state_path,
             release_state,
             history_path,
@@ -249,7 +431,7 @@ def run_main(args: argparse.Namespace) -> int:
         )
         print(
             f"CONFIRMED {item['number']} {item['type'].upper()}: "
-            f"{record['video_id']} scheduled {record['scheduled_local']}"
+            f"{record['video_id']} scheduled {record['scheduled_local']} playlist {DEFAULT_PLAYLIST_ID}"
         )
 
     print("SCHEDULING COMPLETE")
@@ -268,6 +450,8 @@ def run_main(args: argparse.Namespace) -> int:
                     "publish_at": record.get("publish_at"),
                     "privacy": record.get("privacy"),
                     "thumbnail_ok": record.get("thumbnail_ok"),
+                    "playlist_id": record.get("playlist_id"),
+                    "playlist_ok": record.get("playlist_ok"),
                 },
                 ensure_ascii=False,
             )
